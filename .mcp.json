@@ -6,10 +6,8 @@
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@latest",
-        "--project-ref",
-        "atteroccvajbcwxsaoqp",
-        "--service-role-key",
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0dGVyb2NjdmFqYmN3eHNhb3FwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTAxMzAwOSwiZXhwIjoyMDkwNTg5MDA5fQ.oh1iaL_qKnPJUZRnVauhi2gTBjv4vBr8JKwKIH_E-nA"
+        "--access-token",
+        "sbp_018a59e31afe97ed4fbb201d7d24defb482af174"
       ],
       "env": {}
     }

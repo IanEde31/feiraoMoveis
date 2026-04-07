@@ -71,6 +71,14 @@ As mensagens do WhatsApp são armazenadas no Supabase e sincronizadas com a UI v
 - Schemas Zod ficam junto das funcionalidades que os utilizam (não em uma pasta global `/schemas`)
 - Todos os tipos do banco de dados são gerados pelo Supabase e ficam em `lib/supabase/types.ts`
 
+### Regras Obrigatórias Antes de Desenvolver Código
+
+**1. Verificar reuso antes de criar**
+Antes de criar qualquer componente, hook, função ou utilitário, buscar no projeto se algo equivalente já existe e pode ser importado ou estendido. Usar Glob e Grep para essa verificação. Evitar duplicação de código.
+
+**2. Analisar skills disponíveis antes de executar**
+Antes de iniciar qualquer tarefa de desenvolvimento, verificar as skills disponíveis no projeto (`.claude/skills/`) para ver se há alguma aplicável. Skills como `novo-componente`, `nova-pagina`, `novo-formulario`, `nova-rota-api`, `ui-ux-pro-max`, `ckm-ui-styling` e outras devem ser consultadas e utilizadas quando relevantes para garantir consistência e qualidade.
+
 ## Variáveis de Ambiente
 
 ```
@@ -88,96 +96,88 @@ As variáveis específicas de cada provedor WhatsApp são armazenadas no banco d
 
 ## Estado do Desenvolvimento
 
-**Última atualização:** 2026-04-01
+**Última atualização:** 2026-04-06
 
 ### Situação Geral
-MVP em construção. Layout do dashboard funcional com sidebar e métricas mock. Schema do banco criado mas **ainda não aplicado** ao Supabase remoto.
+MVP em andamento avançado. Dashboard, Produtos e Clientes 100% funcionais com dados reais do Supabase. Próxima etapa: integração WhatsApp.
 
 ### O que já está pronto
 
 | Área | Status | Detalhes |
 |------|--------|----------|
-| Projeto Next.js | ✅ Completo | TypeScript, Tailwind, App Router, shadcn/ui base |
+| Projeto Next.js | ✅ Completo | TypeScript, Tailwind, App Router |
 | Autenticação | ✅ Funcional | Clerk configurado, login/cadastro funcionando |
 | Tela de login | ✅ Completo | Layout two-column, tema dourado premium, responsivo |
-| Schema do banco | ✅ Criado | Migrations SQL em `supabase/migrations/` |
-| Webhook Clerk→Supabase | ✅ Criado | `app/api/webhooks/clerk/route.ts` — sincroniza usuários |
-| MCP Supabase | ✅ Instalado | Configurado em `.mcp.json` — ativo na próxima sessão |
-| MCP GitHub | ✅ Instalado | Configurado em `~/.claude.json` (escopo usuário) |
-| MCP Clerk | ✅ Instalado | HTTP `https://mcp.clerk.com/mcp` — ativo na próxima sessão |
-| Skills customizadas | ✅ Criadas | 10 skills em `.claude/skills/` |
+| Migrations SQL | ✅ Aplicadas | 7 migrations no Supabase remoto (projeto `atteroccvajbcwxsaoqp`) |
+| Supabase Storage | ✅ Buckets criados | `produtos` (público), `whatsapp-media` (privado), `avatares` (público) |
+| JWT Template Clerk | ✅ Configurado | Template `supabase` com HS256 + JWT Secret do Supabase |
+| Usuário admin | ✅ Criado | Inserido manualmente na tabela `usuarios` |
+| Webhook Clerk→Supabase | ⏸️ Adiado | Configurar ao hospedar — usar ngrok em dev |
+| Clientes Supabase | ✅ Criados | `lib/supabase/server.ts`, `lib/supabase/client.ts`, `lib/supabase/types.ts` |
+| MCP Supabase | ✅ Ativo | Configurado em `.mcp.json` |
+| MCP GitHub | ✅ Ativo | Configurado em `~/.claude.json` (escopo usuário) |
+| MCP Clerk | ✅ Ativo | HTTP `https://mcp.clerk.com/mcp` |
+| Skills customizadas | ✅ Criadas | 10+ skills em `.claude/skills/` |
 | Sidebar + Layout | ✅ Completo | `components/layout/` — Shell, Sidebar, Header; responsivo com overlay mobile |
-| Dashboard | ✅ Completo (mock) | KPIs, pipeline kanban, estoque crítico, últimas negociações — dados mock |
-| Tela Clientes / Kanban | ✅ Completo (mock) | dnd-kit multi-coluna, busca + filtros (origem, tags), summary bar, drag overlay |
+| Dashboard | ✅ Completo (dados reais) | KPIs com variação mês-a-mês, pipeline real, estoque crítico, últimas negociações — queries Supabase reais |
+| Produtos — CRUD | ✅ Completo | Grid, filtros, sheet de cadastro/edição, modal de detalhes, upload de imagem (drag & drop), gestão de estoque com histórico |
+| Clientes — Kanban | ✅ Completo | dnd-kit multi-coluna, CRUD completo, modal de detalhes com timeline, busca + filtros, dados reais do Supabase |
 
 ### ⚠️ Próxima sessão — começar aqui
 
-**Passo 0 — Continuar o MVP de UI**
-- CRUD de Produtos (`/produtos`) — listagem em grid/tabela, formulário de cadastro, upload de imagem
-- Depois substituir dados mock (dashboard + clientes) por queries Supabase reais
+**WhatsApp — Tela de Chat e Gerenciador de Conexões**
 
-**Passo 1 — Aplicar migrations via MCP Supabase** (o MCP estará disponível após reiniciar)
+**Passo 1 — Tela de Chat** (`/whatsapp`)
+- Lista de conversas (contatos com última mensagem)
+- Janela de mensagens em tempo real via Supabase Realtime
+- Espelho das mensagens — não envia, apenas exibe o que chega via webhook
+- Dados das tabelas: `contatos_whatsapp`, `mensagens_whatsapp`, `ultimas_mensagens_por_contato` (view)
 
-Usar os tools do MCP para executar cada arquivo de `supabase/migrations/` na ordem:
-1. `20260401000001_funcoes_utilitarias.sql`
-2. `20260401000002_tabela_usuarios.sql`
-3. `20260401000003_tabelas_produtos.sql`
-4. `20260401000004_tabelas_clientes_kanban.sql`
-5. `20260401000005_tabelas_whatsapp.sql`
-6. `20260401000006_dados_iniciais.sql`
+**Passo 2 — Gerenciador de Conexões** (`/whatsapp/conexoes`)
+- Listagem das instâncias em `conexoes_whatsapp`
+- Status de cada conexão (ativo, desconectado, QR pendente)
+- Adicionar nova instância (provedor, base_url, api_key)
+- Exibir QR code quando necessário
+- Adaptadores em `lib/whatsapp/` (uazapi, evolution, meta)
 
-**Passo 2 — Criar buckets no Supabase Storage** (via MCP ou dashboard)
-- `produtos` → público
-- `whatsapp-media` → autenticado
-- `avatares` → público
+**Passo 3 — Webhook de entrada** (`/api/webhooks/whatsapp/[provider]`)
+- Recebe eventos dos provedores
+- Salva mensagens em `mensagens_whatsapp`
+- Cria/atualiza contatos em `contatos_whatsapp`
 
-**Passo 3 — Configurar JWT Template no Clerk** (manual — ver `supabase/README.md`)
-- Clerk Dashboard → JWT Templates → New template: `supabase`
-- Usar o JWT Secret do Supabase como signing key
-- Isso é necessário para o RLS funcionar com o Clerk
-
-**Passo 4 — Promover primeiro usuário a admin**
-```sql
-update public.usuarios set papel = 'admin' where email = 'SEU_EMAIL';
-```
-
-**Passo 5 — Configurar webhook do Clerk**
+**Passo 4 — Configurar webhook do Clerk** (ao hospedar)
 - Clerk Dashboard → Webhooks → Add Endpoint
 - URL: `https://SEU_DOMINIO/api/webhooks/clerk`
 - Eventos: `user.created`, `user.updated`, `user.deleted`
 - Copiar o Signing Secret para `CLERK_WEBHOOK_SECRET` no `.env.local`
 
-**Passo 6 — Configurar clientes Supabase no Next.js**
-Criar `lib/supabase/server.ts` e `lib/supabase/client.ts` usando o token JWT do Clerk
-
-### Funcionalidades do MVP a desenvolver (por prioridade)
-
-1. **Dashboard** — métricas: faturamento, clientes por estágio, estoque crítico, negociações abertas
-2. **Kanban de clientes** — drag-and-drop entre estágios, cards com info resumida
-3. **CRUD de produtos** — listagem, cadastro, edição, upload de imagens, controle de estoque
-4. **Tela de chat WhatsApp** — lista de conversas, janela de mensagens, tempo real via Supabase Realtime
-5. **Gerenciador de conexões WhatsApp** — QR code, status, adicionar/remover instâncias
-
 ### Estrutura de arquivos relevante
 
 ```
 app/
-  (auth)/          ← login e cadastro (Clerk)
+  (auth)/                    ← login e cadastro (Clerk)
   (dashboard)/
-    layout.tsx     ← importa Shell (sidebar + header)
-    dashboard/     ← dashboard com KPIs, pipeline, estoque crítico
+    layout.tsx               ← importa Shell (sidebar + header)
+    dashboard/page.tsx       ← KPIs + pipeline + estoque crítico (dados reais)
+    produtos/page.tsx        ← grid de produtos + CRUD completo
+    clientes/page.tsx        ← kanban de clientes + CRUD completo
   api/
+    produtos/                ← GET/POST, [id]: GET/PUT/DELETE, [id]/estoque: POST
+    clientes/                ← GET/POST, [id]: GET/PATCH/PUT/DELETE
+    upload/produtos/         ← upload de imagem para Supabase Storage
     webhooks/
-      clerk/       ← sincroniza usuários Clerk → Supabase
+      clerk/                 ← sincroniza usuários Clerk → Supabase
 components/
-  layout/
-    shell.tsx      ← "use client" — controla estado mobile da sidebar
-    sidebar.tsx    ← "use client" — navegação lateral dark/gold
-    header.tsx     ← "use client" — header com título dinâmico
-supabase/
-  migrations/      ← 6 arquivos SQL (não aplicados ainda)
-  README.md        ← instruções de configuração Clerk+Supabase
+  layout/                    ← Shell, Sidebar, Header
+  produtos/                  ← CardProduto, ListaProdutos, SheetProduto, ModalProduto, tipos
+  clientes/                  ← KanbanBoard, KanbanColuna, KanbanCard, SheetCliente, ModalCliente, BarraPesquisa, tipos
+lib/
+  supabase/
+    server.ts                ← service role client (Server Components / API routes)
+    client.ts                ← anon key + Clerk JWT (Client Components)
+    types.ts                 ← tipos gerados do schema Supabase
+  whatsapp/                  ← adaptadores (a criar): uazapi.ts, evolution.ts, meta.ts, index.ts
 .claude/
-  skills/          ← 10 skills customizadas do projeto
-.mcp.json          ← MCP Supabase (project-scoped)
+  skills/                    ← 10+ skills customizadas do projeto
+.mcp.json                    ← MCP Supabase (project-scoped)
 ```

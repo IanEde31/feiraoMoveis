@@ -2,7 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Phone, GripVertical, MessageCircle, MapPin, Globe, Instagram, Users } from 'lucide-react'
+import { Phone, GripVertical, MessageCircle, MapPin, Globe, Instagram, Users, Pencil, Trash2 } from 'lucide-react'
 import type { Cliente, Origem } from './tipos'
 
 // ---------------------------------------------------------------------------
@@ -64,9 +64,12 @@ interface KanbanCardProps {
   cliente: Cliente
   estagioCor: string
   isDragOverlay?: boolean
+  aoClicar?: (cliente: Cliente) => void
+  aoEditar?: (cliente: Cliente) => void
+  aoDeletar?: (cliente: Cliente) => void
 }
 
-export function KanbanCard({ cliente, estagioCor, isDragOverlay = false }: KanbanCardProps) {
+export function KanbanCard({ cliente, estagioCor, isDragOverlay = false, aoClicar, aoEditar, aoDeletar }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -101,8 +104,19 @@ export function KanbanCard({ cliente, estagioCor, isDragOverlay = false }: Kanba
         isDragOverlay
           ? 'shadow-xl ring-2 ring-ouro-400 rotate-1 scale-105'
           : '',
+        aoClicar && !isDragOverlay ? 'cursor-pointer' : '',
       ].join(' ')}
-      aria-label={`Cliente ${cliente.nome}${cliente.valor_estimado ? `, valor estimado ${formatarValor(cliente.valor_estimado)}` : ''}`}
+      onClick={() => !isDragOverlay && aoClicar?.(cliente)}
+      role={aoClicar && !isDragOverlay ? 'button' : undefined}
+      tabIndex={aoClicar && !isDragOverlay ? 0 : undefined}
+      onKeyDown={aoClicar && !isDragOverlay
+        ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aoClicar(cliente) } }
+        : undefined
+      }
+      aria-label={aoClicar && !isDragOverlay
+        ? `Ver detalhes de ${cliente.nome}`
+        : `Cliente ${cliente.nome}${cliente.valor_estimado ? `, valor estimado ${formatarValor(cliente.valor_estimado)}` : ''}`
+      }
     >
       {/* Barra colorida do estágio */}
       <div className="h-1 w-full flex-shrink-0" style={{ backgroundColor: estagioCor }} />
@@ -128,14 +142,34 @@ export function KanbanCard({ cliente, estagioCor, isDragOverlay = false }: Kanba
             )}
           </div>
 
-          {/* Drag handle — visível no hover */}
-          <div
-            {...listeners}
-            {...attributes}
-            className="flex-shrink-0 p-1 -mr-1 -mt-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing rounded opacity-0 group-hover:opacity-100 transition-opacity focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ouro-500"
-            aria-label="Arrastar card"
-          >
-            <GripVertical size={14} aria-hidden="true" />
+          {/* Ações + drag handle — visíveis no hover */}
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            {aoEditar && !isDragOverlay && (
+              <button
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); aoEditar(cliente) }}
+                className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-ouro-700 hover:bg-ouro-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ouro-500"
+                aria-label={`Editar ${cliente.nome}`}
+              >
+                <Pencil size={11} aria-hidden="true" />
+              </button>
+            )}
+            {aoDeletar && !isDragOverlay && (
+              <button
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); aoDeletar(cliente) }}
+                className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                aria-label={`Deletar ${cliente.nome}`}
+              >
+                <Trash2 size={11} aria-hidden="true" />
+              </button>
+            )}
+            <div
+              {...listeners}
+              {...attributes}
+              className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ouro-500"
+              aria-label="Arrastar card"
+            >
+              <GripVertical size={14} aria-hidden="true" />
+            </div>
           </div>
         </div>
 

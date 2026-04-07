@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -15,11 +15,13 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { Users, TrendingUp } from 'lucide-react'
+import { Users } from 'lucide-react'
 
 import { KanbanCard } from './kanban-card'
 import { KanbanColuna } from './kanban-coluna'
 import { BarraPesquisa } from './barra-pesquisa'
+import { SheetCliente } from './sheet-cliente'
+import { ModalCliente } from './modal-cliente'
 import type { EstagioKanban, Cliente, FiltrosAtivos } from './tipos'
 
 // ---------------------------------------------------------------------------
@@ -44,10 +46,7 @@ function encontrarColunaDoCard(
   return null
 }
 
-function filtrarClientes(
-  clientes: Cliente[],
-  filtros: FiltrosAtivos
-): Cliente[] {
+function filtrarClientes(clientes: Cliente[], filtros: FiltrosAtivos): Cliente[] {
   return clientes.filter((c) => {
     if (filtros.busca) {
       const q = filtros.busca.toLowerCase()
@@ -74,7 +73,7 @@ function formatarValorTotal(v: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Props
+// Props e Ref
 // ---------------------------------------------------------------------------
 
 interface KanbanBoardProps {
@@ -82,19 +81,30 @@ interface KanbanBoardProps {
   clientesIniciais: Cliente[]
 }
 
+export interface KanbanBoardRef {
+  abrirNovoCliente: (estagioId?: string) => void
+}
+
 // ---------------------------------------------------------------------------
 // Board
 // ---------------------------------------------------------------------------
 
-export function KanbanBoard({ estagios, clientesIniciais }: KanbanBoardProps) {
-  // Estado dos clientes (muda com DnD)
+export const KanbanBoard = forwardRef<KanbanBoardRef, KanbanBoardProps>(
+function KanbanBoard({ estagios, clientesIniciais }, ref) {
   const [clientes, setClientes] = useState<Cliente[]>(clientesIniciais)
-
-  // Estado dos filtros
   const [filtros, setFiltros] = useState<FiltrosAtivos>({ busca: '', origens: [], tags: [] })
-
-  // Card sendo arrastado (para DragOverlay)
   const [cardArrastando, setCardArrastando] = useState<Cliente | null>(null)
+
+  // Estado do Sheet
+  const [sheetAberto, setSheetAberto] = useState(false)
+  const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null)
+  const [estagioIdSheet, setEstagioIdSheet] = useState<string>('')
+
+  // Estado de delete
+  const [deletando, setDeletando] = useState<string | null>(null)
+
+  // Estado do Modal de detalhes
+  const [clienteModal, setClienteModal] = useState<Cliente | null>(null)
 
   // Clientes filtrados
   const clientesFiltrados = useMemo(() => filtrarClientes(clientes, filtros), [clientes, filtros])
@@ -122,6 +132,63 @@ export function KanbanBoard({ estagios, clientesIniciais }: KanbanBoardProps) {
         .reduce((acc, c) => acc + (c.valor_estimado ?? 0), 0),
     [clientes, estagios]
   )
+
+  // ---------------------------------------------------------------------------
+  // Handlers CRUD
+  // ---------------------------------------------------------------------------
+
+  function abrirNovoCliente(estagioId?: string) {
+    setClienteEditando(null)
+    setEstagioIdSheet(estagioId ?? estagios[0]?.id ?? '')
+    setSheetAberto(true)
+  }
+
+  // Expor método para o componente pai
+  useImperativeHandle(ref, () => ({ abrirNovoCliente }))
+
+  function abrirEdicao(cliente: Cliente) {
+    setClienteEditando(cliente)
+    setEstagioIdSheet(cliente.estagio_id)
+    setSheetAberto(true)
+  }
+
+  function abrirModal(cliente: Cliente) {
+    setClienteModal(cliente)
+  }
+
+  function fecharModal() {
+    setClienteModal(null)
+  }
+
+  function aoAtualizarCliente(clienteAtualizado: Cliente) {
+    setClientes((prev) => prev.map((c) => c.id === clienteAtualizado.id ? clienteAtualizado : c))
+    // Manter modal sincronizado
+    setClienteModal((prev) => prev?.id === clienteAtualizado.id ? clienteAtualizado : prev)
+  }
+
+  function fecharSheet() {
+    setSheetAberto(false)
+    setClienteEditando(null)
+  }
+
+  function aoSalvar(clienteSalvo: Cliente) {
+    setClientes((prev) => {
+      const existe = prev.find((c) => c.id === clienteSalvo.id)
+      if (existe) return prev.map((c) => c.id === clienteSalvo.id ? clienteSalvo : c)
+      return [clienteSalvo, ...prev]
+    })
+    fecharSheet()
+  }
+
+  async function aoDeletar(cliente: Cliente) {
+    if (!confirm(`Deletar "${cliente.nome}"? Esta ação não pode ser desfeita.`)) return
+    setDeletando(cliente.id)
+    const res = await fetch(`/api/clientes/${cliente.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setClientes((prev) => prev.filter((c) => c.id !== cliente.id))
+    }
+    setDeletando(null)
+  }
 
   // ---------------------------------------------------------------------------
   // Sensores DnD
@@ -169,11 +236,6 @@ export function KanbanBoard({ estagios, clientesIniciais }: KanbanBoardProps) {
 
         const movedCard = { ...card, estagio_id: toColId }
 
-        // Inserir na posição correta dentro da coluna destino
-        const destArr = fromArr.filter((c) => c.estagio_id === toColId)
-        const overIdx = destArr.findIndex((c) => c.id === overId)
-
-        // Rebuild final list maintaining order
         const result: Cliente[] = []
         let inserido = false
         for (const c of fromArr) {
@@ -199,24 +261,39 @@ export function KanbanBoard({ estagios, clientesIniciais }: KanbanBoardProps) {
       const activeId = active.id as string
       const overId = over.id as string
 
+      const fromColId = encontrarColunaDoCard(agrupados, activeId)
+      const toColId =
+        over.data.current?.tipo === 'coluna'
+          ? overId
+          : encontrarColunaDoCard(agrupados, overId)
+
       // Reordenar dentro da mesma coluna
-      if (over.data.current?.tipo !== 'coluna') {
-        const fromColId = encontrarColunaDoCard(agrupados, activeId)
-        const toColId = encontrarColunaDoCard(agrupados, overId)
+      if (over.data.current?.tipo !== 'coluna' && fromColId && toColId && fromColId === toColId) {
+        const lista = agrupados[fromColId] ?? []
+        const oldIdx = lista.findIndex((c) => c.id === activeId)
+        const newIdx = lista.findIndex((c) => c.id === overId)
 
-        if (fromColId && toColId && fromColId === toColId) {
-          const lista = agrupados[fromColId] ?? []
-          const oldIdx = lista.findIndex((c) => c.id === activeId)
-          const newIdx = lista.findIndex((c) => c.id === overId)
-
-          if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
-            const reordenada = arrayMove(lista, oldIdx, newIdx)
-            setClientes((prev) => {
-              const outros = prev.filter((c) => c.estagio_id !== fromColId)
-              return [...outros, ...reordenada]
-            })
-          }
+        if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
+          const reordenada = arrayMove(lista, oldIdx, newIdx)
+          setClientes((prev) => {
+            const outros = prev.filter((c) => c.estagio_id !== fromColId)
+            return [...outros, ...reordenada]
+          })
         }
+        return
+      }
+
+      // Persistir mudança de coluna no banco
+      if (fromColId && toColId && fromColId !== toColId) {
+        fetch(`/api/clientes/${activeId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estagio_id: toColId }),
+        }).catch(() => {
+          setClientes((prev) =>
+            prev.map((c) => c.id === activeId ? { ...c, estagio_id: fromColId! } : c)
+          )
+        })
       }
     },
     [agrupados]
@@ -251,7 +328,10 @@ export function KanbanBoard({ estagios, clientesIniciais }: KanbanBoardProps) {
         <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
           <p className="text-xs text-slate-500">Em negociação</p>
           <p className="text-xl font-bold text-orange-600 tabular-nums mt-0.5">
-            {agrupados['negociacao']?.length ?? 0}
+            {clientes.filter((c) => {
+              const est = estagios.find((e) => e.id === c.estagio_id)
+              return !est?.eh_final
+            }).length}
           </p>
         </div>
       </div>
@@ -264,7 +344,7 @@ export function KanbanBoard({ estagios, clientesIniciais }: KanbanBoardProps) {
         totalGeral={clientes.length}
       />
 
-      {/* Estado vazio global */}
+      {/* Estado vazio global com filtros */}
       {clientesFiltrados.length === 0 && (filtros.busca || filtros.origens.length > 0 || filtros.tags.length > 0) && (
         <div className="bg-white rounded-xl border border-slate-200 py-16 flex flex-col items-center gap-3 shadow-sm">
           <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
@@ -283,7 +363,7 @@ export function KanbanBoard({ estagios, clientesIniciais }: KanbanBoardProps) {
         </div>
       )}
 
-      {/* Kanban board com scroll horizontal */}
+      {/* Kanban board */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -300,12 +380,20 @@ export function KanbanBoard({ estagios, clientesIniciais }: KanbanBoardProps) {
             .slice()
             .sort((a, b) => a.ordem - b.ordem)
             .map((estagio) => (
-              <KanbanColuna
+              <div
                 key={estagio.id}
-                estagio={estagio}
-                clientes={agrupadosFiltrados[estagio.id] ?? []}
-                totalClientes={agrupados[estagio.id]?.length ?? 0}
-              />
+                className={deletando ? 'pointer-events-none' : ''}
+              >
+                <KanbanColuna
+                  estagio={estagio}
+                  clientes={agrupadosFiltrados[estagio.id] ?? []}
+                  totalClientes={agrupados[estagio.id]?.length ?? 0}
+                  onNovoCliente={abrirNovoCliente}
+                  aoClicar={abrirModal}
+                  aoEditar={abrirEdicao}
+                  aoDeletar={aoDeletar}
+                />
+              </div>
             ))}
         </div>
 
@@ -322,6 +410,26 @@ export function KanbanBoard({ estagios, clientesIniciais }: KanbanBoardProps) {
           )}
         </DragOverlay>
       </DndContext>
+
+      {/* Modal de detalhes */}
+      <ModalCliente
+        cliente={clienteModal}
+        estagios={estagios}
+        aoFechar={fecharModal}
+        aoEditar={(c) => { fecharModal(); abrirEdicao(c) }}
+        aoAtualizar={aoAtualizarCliente}
+        aoDeletar={(c) => { fecharModal(); aoDeletar(c) }}
+      />
+
+      {/* Sheet de cadastro/edição */}
+      <SheetCliente
+        aberto={sheetAberto}
+        cliente={clienteEditando}
+        estagios={estagios}
+        estagioIdPadrao={estagioIdSheet}
+        aoFechar={fecharSheet}
+        aoSalvar={aoSalvar}
+      />
     </div>
   )
-}
+})

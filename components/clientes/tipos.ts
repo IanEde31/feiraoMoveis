@@ -14,10 +14,12 @@ export interface Cliente {
   nome: string
   telefone?: string
   email?: string
+  cpf_cnpj?: string
   estagio_id: string
   origem?: Origem
   tags: string[]
   valor_estimado?: number
+  observacoes?: string
   created_at: string
 }
 

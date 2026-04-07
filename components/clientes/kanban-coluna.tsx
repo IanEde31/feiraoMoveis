@@ -16,9 +16,12 @@ interface KanbanColunaProps {
   clientes: Cliente[]
   totalClientes: number // total sem filtro (para exibir no header)
   onNovoCliente?: (estagioId: string) => void
+  aoClicar?: (cliente: Cliente) => void
+  aoEditar?: (cliente: Cliente) => void
+  aoDeletar?: (cliente: Cliente) => void
 }
 
-export function KanbanColuna({ estagio, clientes, totalClientes, onNovoCliente }: KanbanColunaProps) {
+export function KanbanColuna({ estagio, clientes, totalClientes, onNovoCliente, aoClicar, aoEditar, aoDeletar }: KanbanColunaProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: estagio.id,
     data: { tipo: 'coluna', estagioId: estagio.id },
@@ -78,6 +81,9 @@ export function KanbanColuna({ estagio, clientes, totalClientes, onNovoCliente }
               key={cliente.id}
               cliente={cliente}
               estagioCor={estagio.cor}
+              aoClicar={aoClicar}
+              aoEditar={aoEditar}
+              aoDeletar={aoDeletar}
             />
           ))}
         </SortableContext>
