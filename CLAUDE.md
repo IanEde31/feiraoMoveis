@@ -96,10 +96,10 @@ As variáveis específicas de cada provedor WhatsApp são armazenadas no banco d
 
 ## Estado do Desenvolvimento
 
-**Última atualização:** 2026-04-06
+**Última atualização:** 2026-04-07
 
 ### Situação Geral
-MVP em andamento avançado. Dashboard, Produtos e Clientes 100% funcionais com dados reais do Supabase. Próxima etapa: integração WhatsApp.
+MVP em andamento avançado. Dashboard, Produtos, Clientes e WhatsApp (chat + conexões via Baileys) funcionais com dados reais. Real-time temporariamente substituído por polling — ver `instrucoes-realtime.md` para reativar via Supabase Realtime.
 
 ### O que já está pronto
 
@@ -122,34 +122,38 @@ MVP em andamento avançado. Dashboard, Produtos e Clientes 100% funcionais com d
 | Dashboard | ✅ Completo (dados reais) | KPIs com variação mês-a-mês, pipeline real, estoque crítico, últimas negociações — queries Supabase reais |
 | Produtos — CRUD | ✅ Completo | Grid, filtros, sheet de cadastro/edição, modal de detalhes, upload de imagem (drag & drop), gestão de estoque com histórico |
 | Clientes — Kanban | ✅ Completo | dnd-kit multi-coluna, CRUD completo, modal de detalhes com timeline, busca + filtros, dados reais do Supabase |
+| WhatsApp — Baileys | ✅ Funcional | Conexões multi-instância via Baileys, recebimento de mensagens, envio, persistência em `mensagens_whatsapp`/`contatos_whatsapp` |
+| WhatsApp — Tela de Chat | ✅ Funcional | Layout 2 colunas, dropdown de troca/criação de conexão, lista de conversas com últimas mensagens, chat com envio. Tema claro alinhado a Produtos/Clientes |
+| WhatsApp — Realtime | ⚠️ Polling temporário | Substituído por polling (5s contatos / 3s mensagens / 8s status). Ver `instrucoes-realtime.md` para reativar Supabase Realtime |
 
-### ⚠️ Próxima sessão — começar aqui
+### O que foi feito na última sessão (2026-04-07)
 
-**WhatsApp — Tela de Chat e Gerenciador de Conexões**
+**WhatsApp — refatoração completa da página + correção do bug "mensagens não aparecem"**
 
-**Passo 1 — Tela de Chat** (`/whatsapp`)
-- Lista de conversas (contatos com última mensagem)
-- Janela de mensagens em tempo real via Supabase Realtime
-- Espelho das mensagens — não envia, apenas exibe o que chega via webhook
-- Dados das tabelas: `contatos_whatsapp`, `mensagens_whatsapp`, `ultimas_mensagens_por_contato` (view)
+1. **Diagnóstico**: a página era a única usando o cliente Supabase do **browser** (`useSupabaseClient` + JWT do Clerk). Produtos e Clientes usam server client com service role, então o caminho RLS via JWT do Clerk nunca tinha sido validado. O JWT que o Clerk emite para o template `supabase` não está sendo aceito pelo Postgres como `role: authenticated`, então as policies `to authenticated using(true)` retornavam **0 linhas**. Como resultado, o banco tinha 22 mensagens e 2 contatos, mas a UI mostrava "Aguardando mensagens…". Pelo mesmo motivo, o Realtime via `postgres_changes` também não entregava eventos.
 
-**Passo 2 — Gerenciador de Conexões** (`/whatsapp/conexoes`)
-- Listagem das instâncias em `conexoes_whatsapp`
-- Status de cada conexão (ativo, desconectado, QR pendente)
-- Adicionar nova instância (provedor, base_url, api_key)
-- Exibir QR code quando necessário
-- Adaptadores em `lib/whatsapp/` (uazapi, evolution, meta)
+2. **Migration**: `20260407000002_whatsapp_realtime_publication.sql` — adiciona `mensagens_whatsapp`, `contatos_whatsapp` e `conexoes_whatsapp` à publication `supabase_realtime` e seta `replica identity full`. Necessária para quando o Realtime for reativado.
 
-**Passo 3 — Webhook de entrada** (`/api/webhooks/whatsapp/[provider]`)
-- Recebe eventos dos provedores
-- Salva mensagens em `mensagens_whatsapp`
-- Cria/atualiza contatos em `contatos_whatsapp`
+3. **Refatoração de UI** (`app/(dashboard)/whatsapp/page.tsx`):
+   - Tema claro alinhado ao padrão do sistema (Produtos/Clientes) — `bg-white`, bordas `slate-200`, título `font-playfair`, acentos `amber-500`.
+   - Layout reduzido de **3 colunas para 2**: removida a coluna lateral de Conexões.
+   - **Dropdown de conexão** no topo da coluna de conversas (estilo "user switcher"): troca rápida entre números, mostra status com dot colorido, e item "+ Adicionar nova conexão" abre o modal de criação.
+   - Botão "Conectar / Ver QR Code" aparece abaixo do dropdown quando a conexão selecionada está offline.
 
-**Passo 4 — Configurar webhook do Clerk** (ao hospedar)
-- Clerk Dashboard → Webhooks → Add Endpoint
-- URL: `https://SEU_DOMINIO/api/webhooks/clerk`
-- Eventos: `user.created`, `user.updated`, `user.deleted`
-- Copiar o Signing Secret para `CLERK_WEBHOOK_SECRET` no `.env.local`
+4. **Novas rotas API server-side** (service role, sem RLS):
+   - `app/api/whatsapp/contatos/route.ts` — `GET ?conexao_id=...` retorna `{ contatos, ultimas }`.
+   - `app/api/whatsapp/mensagens/route.ts` — `GET ?contato_id=...&desde=ISO` retorna mensagens (suporta polling incremental via `desde`).
+
+5. **Página agora usa polling no lugar do Realtime do browser** (que está bloqueado por RLS+JWT):
+   - 5s — recarrega lista de contatos / últimas mensagens.
+   - 3s — busca mensagens novas da conversa aberta (incremental, só puxa o que é mais novo que a última `timestamp_whatsapp` em cache).
+   - 8s — atualiza status das conexões.
+   - Removido `useSupabaseClient` e os 2 canais Realtime do browser.
+
+**Outras pendências**
+
+- **Webhook do Clerk** (`/api/webhooks/clerk`) — configurar ao hospedar (Dashboard → Webhooks → Add Endpoint, eventos `user.created/updated/deleted`, copiar Signing Secret para `CLERK_WEBHOOK_SECRET`).
+- **Adaptadores extras de WhatsApp** (uazapi, evolution, meta) — hoje só Baileys está implementado em `lib/whatsapp/baileys/`. Quando houver demanda, criar adaptadores adicionais seguindo a mesma interface.
 
 ### Estrutura de arquivos relevante
 
@@ -161,10 +165,18 @@ app/
     dashboard/page.tsx       ← KPIs + pipeline + estoque crítico (dados reais)
     produtos/page.tsx        ← grid de produtos + CRUD completo
     clientes/page.tsx        ← kanban de clientes + CRUD completo
+    whatsapp/page.tsx        ← chat 2-colunas com dropdown de conexões (polling)
   api/
     produtos/                ← GET/POST, [id]: GET/PUT/DELETE, [id]/estoque: POST
     clientes/                ← GET/POST, [id]: GET/PATCH/PUT/DELETE
     upload/produtos/         ← upload de imagem para Supabase Storage
+    whatsapp/
+      conexoes/              ← GET lista / POST cria conexão Baileys
+      conectar/              ← POST inicia instância e devolve QR
+      status/                ← GET status/QR de uma conexão
+      contatos/              ← GET ?conexao_id → { contatos, ultimas }   (server, service role)
+      mensagens/             ← GET ?contato_id&desde → mensagens          (server, service role)
+      enviar/                ← POST envia mensagem via Baileys
     webhooks/
       clerk/                 ← sincroniza usuários Clerk → Supabase
 components/
@@ -174,9 +186,10 @@ components/
 lib/
   supabase/
     server.ts                ← service role client (Server Components / API routes)
-    client.ts                ← anon key + Clerk JWT (Client Components)
+    client.ts                ← anon key + Clerk JWT (Client Components) — RLS bloqueado, ver instrucoes-realtime.md
     types.ts                 ← tipos gerados do schema Supabase
-  whatsapp/                  ← adaptadores (a criar): uazapi.ts, evolution.ts, meta.ts, index.ts
+  whatsapp/
+    baileys/                 ← connection.ts, events.ts, manager.ts (única implementação ativa hoje)
 .claude/
   skills/                    ← 10+ skills customizadas do projeto
 .mcp.json                    ← MCP Supabase (project-scoped)
