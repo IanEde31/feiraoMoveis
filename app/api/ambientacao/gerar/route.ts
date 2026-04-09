@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     // --- 4. Preparar buffers ---
     const ambientacaoId = crypto.randomUUID()
-    let ambienteBuffer = Buffer.from(await ambienteFile.arrayBuffer())
+    let ambienteBuffer: Buffer = Buffer.from(await ambienteFile.arrayBuffer())
     let ambienteMime = ambienteFile.type || 'image/jpeg'
 
     // Converter formatos não suportados pelo Supabase Storage (ex.: AVIF, HEIC) para JPEG
