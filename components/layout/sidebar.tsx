@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Wifi,
   Sparkles,
+  Box,
   X,
   ChevronRight,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ const itensNav = [
   { href: '/clientes', icone: Users, rotulo: 'Clientes' },
   { href: '/produtos', icone: Package, rotulo: 'Produtos' },
   { href: '/ambientacao', icone: Sparkles, rotulo: 'Ambientação IA' },
+  { href: '/ar', icone: Box, rotulo: 'AR' },
   { href: '/whatsapp', icone: MessageSquare, rotulo: 'WhatsApp' },
   { href: '/conexoes', icone: Wifi, rotulo: 'Conexões' },
 ]
