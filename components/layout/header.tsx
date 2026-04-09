@@ -1,7 +1,9 @@
 'use client'
 
-import { Menu, Bell } from 'lucide-react'
+import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { usePathname } from 'next/navigation'
+import { NotificacoesDropdown } from './NotificacoesDropdown'
+import { PerfilDropdown } from './PerfilDropdown'
 
 const mapeamentoTitulos: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -13,9 +15,11 @@ const mapeamentoTitulos: Record<string, string> = {
 
 interface HeaderProps {
   aoAbrirSidebar: () => void
+  aoAlternarRecolhida: () => void
+  recolhida: boolean
 }
 
-export function Header({ aoAbrirSidebar }: HeaderProps) {
+export function Header({ aoAbrirSidebar, aoAlternarRecolhida, recolhida }: HeaderProps) {
   const pathname = usePathname()
 
   const titulo =
@@ -33,22 +37,27 @@ export function Header({ aoAbrirSidebar }: HeaderProps) {
         >
           <Menu size={20} aria-hidden="true" />
         </button>
+        <button
+          onClick={aoAlternarRecolhida}
+          className="hidden lg:inline-flex p-1.5 -ml-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ouro-500"
+          aria-label={recolhida ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+          title={recolhida ? 'Expandir menu' : 'Recolher menu'}
+        >
+          {recolhida ? (
+            <PanelLeftOpen size={16} aria-hidden="true" />
+          ) : (
+            <PanelLeftClose size={16} aria-hidden="true" />
+          )}
+        </button>
         <h1 className="font-playfair text-lg font-semibold text-slate-900">
           {titulo}
         </h1>
       </div>
 
       <div className="flex items-center gap-1">
-        <button
-          className="relative p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ouro-500"
-          aria-label="Ver notificações"
-        >
-          <Bell size={18} aria-hidden="true" />
-          <span
-            className="absolute top-1.5 right-1.5 w-2 h-2 bg-ouro-500 rounded-full border-2 border-white"
-            aria-hidden="true"
-          />
-        </button>
+        <NotificacoesDropdown />
+        <div className="w-px h-6 bg-slate-200 mx-1.5" aria-hidden="true" />
+        <PerfilDropdown />
       </div>
     </header>
   )

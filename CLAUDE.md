@@ -88,6 +88,9 @@ SUPABASE_SERVICE_ROLE_KEY
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 CLERK_SECRET_KEY
 CLERK_WEBHOOK_SECRET
+
+# Ambientação IA (Gemini)
+GOOGLE_AI_API_KEY=sua_chave_aqui
 ```
 
 As variáveis específicas de cada provedor WhatsApp são armazenadas no banco de dados (configuração por instância), não como variáveis de ambiente estáticas, pois o usuário pode configurar múltiplas conexões.
@@ -96,10 +99,10 @@ As variáveis específicas de cada provedor WhatsApp são armazenadas no banco d
 
 ## Estado do Desenvolvimento
 
-**Última atualização:** 2026-04-07
+**Última atualização:** 2026-04-08
 
 ### Situação Geral
-MVP em andamento avançado. Dashboard, Produtos, Clientes e WhatsApp (chat + conexões via Baileys) funcionais com dados reais. Real-time temporariamente substituído por polling — ver `instrucoes-realtime.md` para reativar via Supabase Realtime.
+MVP em andamento avançado. Dashboard, Produtos, Clientes, WhatsApp (chat + conexões via Baileys) e Ambientação IA funcionais. Ambientação integrada ao Supabase (Storage + tabela `ambientacoes`) com geração via Gemini. Real-time temporariamente substituído por polling — ver `instrucoes-realtime.md` para reativar via Supabase Realtime.
 
 ### O que já está pronto
 
@@ -125,8 +128,23 @@ MVP em andamento avançado. Dashboard, Produtos, Clientes e WhatsApp (chat + con
 | WhatsApp — Baileys | ✅ Funcional | Conexões multi-instância via Baileys, recebimento de mensagens, envio, persistência em `mensagens_whatsapp`/`contatos_whatsapp` |
 | WhatsApp — Tela de Chat | ✅ Funcional | Layout 2 colunas, dropdown de troca/criação de conexão, lista de conversas com últimas mensagens, chat com envio. Tema claro alinhado a Produtos/Clientes |
 | WhatsApp — Realtime | ⚠️ Polling temporário | Substituído por polling (5s contatos / 3s mensagens / 8s status). Ver `instrucoes-realtime.md` para reativar Supabase Realtime |
+| Ambientação IA | ✅ Integrada ao Supabase | Geração via Gemini (`gemini-2.0-flash-preview-image-generation`), Storage privado `ambientacoes`, rotas API server-side, galeria por cliente. Pendente: `GOOGLE_AI_API_KEY` real |
 
-### O que foi feito na última sessão (2026-04-07)
+### O que foi feito na última sessão (2026-04-08)
+
+**Ambientação IA — integração completa (remoção do localStorage + mock)**
+
+1. **`lib/ambientacao/galeria.ts`** — implementação já estava correta (chama rotas API, nunca localStorage). Confirmado.
+2. **`components/ambientacao/ambientacao-workspace.tsx`** — `gerar()` substituído: agora monta `FormData` e chama `POST /api/ambientacao/gerar` real. `galeria.salvar()` manual removido (responsabilidade da rota). `setResultado` atualizado com `item.resultado_url` e `item.criada_em` da resposta.
+3. **`components/ambientacao/galeria-cliente.tsx`** — botão de download substituído de `<a download>` para `fetch → blob → createObjectURL` (compatível com signed URLs cross-origin do Supabase).
+4. **`components/ambientacao/upload-ambiente.tsx`** — validação de tamanho >10MB adicionada com mensagem de erro inline (padrão do projeto).
+5. **CLAUDE.md** — Variáveis de ambiente (`GOOGLE_AI_API_KEY`) e tabela de status atualizados.
+
+**Pendências para uso real**
+- Definir `GOOGLE_AI_API_KEY=<chave_real>` no `.env.local` e rodar checklist de aceitação (`ambientacao.md` seção 6).
+- Rota agregada `GET /api/ambientacao/contagens` — eliminar loop N+1 de contagem por cliente no workspace.
+
+### O que foi feito na sessão (2026-04-07)
 
 **WhatsApp — refatoração completa da página + correção do bug "mensagens não aparecem"**
 
@@ -179,10 +197,15 @@ app/
       enviar/                ← POST envia mensagem via Baileys
     webhooks/
       clerk/                 ← sincroniza usuários Clerk → Supabase
+    ambientacao/
+      gerar/                 ← POST multipart/form-data → upload + Gemini + insert Supabase
+      galeria/               ← GET ?cliente_id → lista com signed URLs
+      [id]/                  ← GET (detalhes) + DELETE (remove Storage + tabela)
 components/
   layout/                    ← Shell, Sidebar, Header
   produtos/                  ← CardProduto, ListaProdutos, SheetProduto, ModalProduto, tipos
   clientes/                  ← KanbanBoard, KanbanColuna, KanbanCard, SheetCliente, ModalCliente, BarraPesquisa, tipos
+  ambientacao/               ← AmbientacaoWorkspace, GaleriaCliente, UploadAmbiente, SeletorProdutos, SeletorCliente, PainelResultado, tipos
 lib/
   supabase/
     server.ts                ← service role client (Server Components / API routes)
@@ -190,6 +213,10 @@ lib/
     types.ts                 ← tipos gerados do schema Supabase
   whatsapp/
     baileys/                 ← connection.ts, events.ts, manager.ts (única implementação ativa hoje)
+  ambientacao/
+    galeria.ts               ← GaleriaStore interface + impl que chama as rotas API
+    provider.ts              ← interface ProviderAmbientacao
+    providers/gemini.ts      ← implementação Gemini 2.0 Flash image generation
 .claude/
   skills/                    ← 10+ skills customizadas do projeto
 .mcp.json                    ← MCP Supabase (project-scoped)

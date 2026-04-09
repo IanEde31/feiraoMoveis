@@ -1,3 +1,7 @@
+// Este arquivo é gerado automaticamente pelo Supabase CLI.
+// NÃO edite manualmente — rode /gerar-tipos para atualizar.
+// Última atualização: 2026-04-08
+
 export type Json =
   | string
   | number
@@ -14,6 +18,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      ambientacoes: {
+        Row: {
+          ambiente_path: string
+          cliente_id: string
+          created_at: string
+          id: string
+          mensagem_erro: string | null
+          metadata: Json | null
+          miniatura_path: string | null
+          modelo: string | null
+          produtos_ids: string[]
+          produtos_snapshot: Json
+          prompt: string | null
+          provedor: string | null
+          resultado_path: string
+          status: string
+          updated_at: string
+          usuario_id: string | null
+        }
+        Insert: {
+          ambiente_path: string
+          cliente_id: string
+          created_at?: string
+          id?: string
+          mensagem_erro?: string | null
+          metadata?: Json | null
+          miniatura_path?: string | null
+          modelo?: string | null
+          produtos_ids?: string[]
+          produtos_snapshot?: Json
+          prompt?: string | null
+          provedor?: string | null
+          resultado_path: string
+          status?: string
+          updated_at?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          ambiente_path?: string
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          mensagem_erro?: string | null
+          metadata?: Json | null
+          miniatura_path?: string | null
+          modelo?: string | null
+          produtos_ids?: string[]
+          produtos_snapshot?: Json
+          prompt?: string | null
+          provedor?: string | null
+          resultado_path?: string
+          status?: string
+          updated_at?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambientacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ambientacoes_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categorias_produto: {
         Row: {
           created_at: string
@@ -105,15 +181,16 @@ export type Database = {
         Row: {
           api_key: string | null
           ativo: boolean
-          base_url: string
+          base_url: string | null
           created_at: string
           id: string
-          instancia: string
+          instancia: string | null
           nome: string
           numero_telefone: string | null
           provedor: string
           qr_code: string | null
           qr_expiracao: string | null
+          session_path: string | null
           status: string
           ultima_atividade: string | null
           updated_at: string
@@ -124,15 +201,16 @@ export type Database = {
         Insert: {
           api_key?: string | null
           ativo?: boolean
-          base_url: string
+          base_url?: string | null
           created_at?: string
           id?: string
-          instancia: string
+          instancia?: string | null
           nome: string
           numero_telefone?: string | null
           provedor: string
           qr_code?: string | null
           qr_expiracao?: string | null
+          session_path?: string | null
           status?: string
           ultima_atividade?: string | null
           updated_at?: string
@@ -143,15 +221,16 @@ export type Database = {
         Update: {
           api_key?: string | null
           ativo?: boolean
-          base_url?: string
+          base_url?: string | null
           created_at?: string
           id?: string
-          instancia?: string
+          instancia?: string | null
           nome?: string
           numero_telefone?: string | null
           provedor?: string
           qr_code?: string | null
           qr_expiracao?: string | null
+          session_path?: string | null
           status?: string
           ultima_atividade?: string | null
           updated_at?: string

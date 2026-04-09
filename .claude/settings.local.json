@@ -4,7 +4,16 @@
       "Bash(claude mcp:*)",
       "Bash(npm run:*)",
       "mcp__claude_ai_Supabase__execute_sql",
-      "mcp__claude_ai_Supabase__apply_migration"
+      "mcp__claude_ai_Supabase__apply_migration",
+      "WebFetch(domain:clerk.com)",
+      "WebFetch(domain:ai.google.dev)",
+      "Skill(nova-migration)",
+      "Skill(gemini-imagem-para-imagem)",
+      "Skill(gerar-tipos)",
+      "mcp__claude_ai_Supabase__generate_typescript_types",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "mcp__claude_ai_Supabase__list_tables",
+      "Skill(nova-rota-api)"
     ]
   }
 }
