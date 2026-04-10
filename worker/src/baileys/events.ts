@@ -56,6 +56,42 @@ export function registrarEventos(conexaoId: string, organizationId: string, sock
           continue
         }
 
+        // Criar lead no kanban se o contato ainda não virou cliente
+        if (!isGrupo) {
+          try {
+            const { data: contatoAtual } = await supabase
+              .from('contatos_whatsapp')
+              .select('id, cliente_id')
+              .eq('id', contato.id)
+              .single()
+
+            if (contatoAtual?.cliente_id === null) {
+              const { data: novoCliente } = await supabase
+                .from('clientes')
+                .insert({
+                  organization_id: organizationId,
+                  nome: msg.pushName ?? numero ?? 'Contato WhatsApp',
+                  telefone: numero,
+                  estagio_id: '8cf48bcc-d0fc-4af0-b220-1c2d6bb6ce36',
+                  origem: 'whatsapp',
+                })
+                .select('id')
+                .single()
+
+              if (novoCliente) {
+                await supabase
+                  .from('contatos_whatsapp')
+                  .update({ cliente_id: novoCliente.id })
+                  .eq('id', contato.id)
+
+                console.log('[events] novo lead criado:', novoCliente.id)
+              }
+            }
+          } catch (eLead) {
+            console.error('[events] erro ao criar lead', eLead)
+          }
+        }
+
         const m = msg.message
         const conteudo =
           m?.conversation ??
