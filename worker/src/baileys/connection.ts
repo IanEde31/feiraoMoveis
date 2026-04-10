@@ -60,7 +60,7 @@ export function iniciarConexao(
         auth: state,
         printQRInTerminal: false,
         browser: Browsers.ubuntu('Chrome'),
-        syncFullHistory: false,
+        syncFullHistory: true,
         generateHighQualityLinkPreview: false,
         markOnlineOnConnect: false,
       })
