@@ -13,6 +13,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  webpack: (config: any) => {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: /worker\//,
+    }
+    return config
+  },
 }
 
 export default nextConfig
