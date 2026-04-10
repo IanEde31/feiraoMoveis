@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { obterConexao } from '@/lib/whatsapp/baileys/manager'
-import { createServerClient } from '@/lib/supabase/server'
+import { getOrgScopedClient } from '@/lib/supabase/with-org'
 import { persistirMensagemEnviada } from '@/lib/whatsapp/persistir-mensagem-enviada'
 
 export const runtime = 'nodejs'
@@ -8,6 +8,8 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
   try {
+    const { supabase, orgId } = await getOrgScopedClient()
+
     const { conexao_id, jid, texto } = await req.json()
     if (!conexao_id || !jid || !texto) {
       return NextResponse.json(
@@ -26,16 +28,16 @@ export async function POST(req: Request) {
 
     // persiste imediatamente no banco (o evento messages.upsert também dispara,
     // mas queremos feedback rápido na UI)
-    const supabase = createServerClient()
     const { data: contato } = await supabase
       .from('contatos_whatsapp')
       .upsert(
         {
+          organization_id: orgId,
           conexao_id,
           jid,
           numero_telefone: jid.split('@')[0],
           is_grupo: jid.endsWith('@g.us'),
-        } as never,
+        },
         { onConflict: 'conexao_id,jid' }
       )
       .select('id')
@@ -44,6 +46,7 @@ export async function POST(req: Request) {
     if (contato && resultado?.key?.id) {
       await persistirMensagemEnviada({
         supabase,
+        organizationId: orgId,
         conexaoId: conexao_id,
         contatoId: contato.id,
         jid,
@@ -56,6 +59,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, message_id: resultado?.key?.id ?? null })
   } catch (e: any) {
+    if (e?.message === 'Não autenticado' || e?.message === 'Sem organização ativa') {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+    }
     console.error('[api/whatsapp/enviar]', e)
     return NextResponse.json({ error: e?.message ?? 'Erro' }, { status: 500 })
   }

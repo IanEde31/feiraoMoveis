@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 type Args = {
   supabase: SupabaseClient
+  organizationId: string
   conexaoId: string
   contatoId: string
   jid: string
@@ -26,6 +27,7 @@ type Long = { toNumber(): number }
  */
 export async function persistirMensagemEnviada({
   supabase,
+  organizationId,
   conexaoId,
   contatoId,
   jid,
@@ -49,6 +51,7 @@ export async function persistirMensagemEnviada({
 
   await supabase.from('mensagens_whatsapp').upsert(
     {
+      organization_id: organizationId,
       conexao_id: conexaoId,
       contato_id: contatoId,
       message_id: messageId,
@@ -59,7 +62,7 @@ export async function persistirMensagemEnviada({
       enviado_por_nos: true,
       status_entrega: 'enviado',
       timestamp_whatsapp: timestampIso,
-    } as never,
+    },
     { onConflict: 'conexao_id,message_id' }
   )
 }

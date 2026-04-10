@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import sharp from 'sharp'
-import { createServerClient } from '@/lib/supabase/server'
+import { getOrgScopedClient } from '@/lib/supabase/with-org'
 import { geminiProvider } from '@/lib/ambientacao/providers/gemini'
 import type { Json } from '@/lib/supabase/types'
 
@@ -38,13 +38,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Imagem do ambiente deve ter no máximo 10 MB' }, { status: 400 })
     }
 
-    const supabase = createServerClient()
+    const { supabase, orgId } = await getOrgScopedClient()
     const { cliente_id, produtos: produtosIds } = parsed.data
 
     // --- 2. Verificar se cliente existe ---
     const { data: cliente, error: clienteErr } = await supabase
       .from('clientes')
       .select('id, nome')
+      .eq('organization_id', orgId)
       .eq('id', cliente_id)
       .single()
 
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
     const { data: produtos, error: produtosErr } = await supabase
       .from('produtos')
       .select('id, nome, preco_venda, imagens')
+      .eq('organization_id', orgId)
       .in('id', produtosIds)
 
     if (produtosErr || !produtos?.length) {
@@ -134,6 +136,7 @@ export async function POST(req: NextRequest) {
       .from('ambientacoes')
       .insert({
         id: ambientacaoId,
+        organization_id: orgId,
         cliente_id,
         ambiente_path: ambientePath,
         resultado_path: resultadoPath,
@@ -177,8 +180,7 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error) {
-    console.error('[POST /api/ambientacao/gerar]', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 }

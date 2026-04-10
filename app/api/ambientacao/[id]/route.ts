@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/server'
+import { getOrgScopedClient } from '@/lib/supabase/with-org'
 
 const BUCKET = 'ambientacoes'
 const SIGNED_URL_EXPIRY = 3600 // 1 hora
@@ -9,11 +9,12 @@ type Params = { params: Promise<{ id: string }> }
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
     const { id } = await params
-    const supabase = createServerClient()
+    const { supabase, orgId } = await getOrgScopedClient()
 
     const { data: row, error } = await supabase
       .from('ambientacoes')
       .select('*')
+      .eq('organization_id', orgId)
       .eq('id', id)
       .single()
 
@@ -31,21 +32,21 @@ export async function GET(_req: NextRequest, { params }: Params) {
       ambiente_url: urlAmbiente?.signedUrl ?? null,
       resultado_url: urlResultado?.signedUrl ?? null,
     })
-  } catch (error) {
-    console.error('[GET /api/ambientacao/[id]]', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
     const { id } = await params
-    const supabase = createServerClient()
+    const { supabase, orgId } = await getOrgScopedClient()
 
     // --- 1. Buscar a linha para obter os paths ---
     const { data: row, error: fetchErr } = await supabase
       .from('ambientacoes')
       .select('ambiente_path, resultado_path, miniatura_path')
+      .eq('organization_id', orgId)
       .eq('id', id)
       .single()
 
@@ -69,7 +70,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     }
 
     // --- 3. Deletar a linha da tabela ---
-    const { error: deleteErr } = await supabase.from('ambientacoes').delete().eq('id', id)
+    const { error: deleteErr } = await supabase.from('ambientacoes').delete().eq('organization_id', orgId).eq('id', id)
 
     if (deleteErr) {
       console.error('[DELETE /api/ambientacao/[id]] delete row:', deleteErr)
@@ -77,8 +78,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     }
 
     return new NextResponse(null, { status: 204 })
-  } catch (error) {
-    console.error('[DELETE /api/ambientacao/[id]]', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 }

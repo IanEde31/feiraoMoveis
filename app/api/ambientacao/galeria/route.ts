@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { createServerClient } from '@/lib/supabase/server'
+import { getOrgScopedClient } from '@/lib/supabase/with-org'
 
 const BUCKET = 'ambientacoes'
 const SIGNED_URL_EXPIRY = 3600 // 1 hora
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const { supabase, orgId } = await getOrgScopedClient()
     const { cliente_id } = parsed.data
 
     const { data: rows, error } = await supabase
@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
       .select(
         'id, cliente_id, resultado_path, miniatura_path, produtos_ids, produtos_snapshot, created_at, status'
       )
+      .eq('organization_id', orgId)
       .eq('cliente_id', cliente_id)
       .eq('status', 'pronto')
       .order('created_at', { ascending: false })
@@ -70,8 +71,7 @@ export async function GET(req: NextRequest) {
         },
       }
     )
-  } catch (error) {
-    console.error('[GET /api/ambientacao/galeria]', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   }
 }
