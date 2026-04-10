@@ -1,0 +1,22 @@
+{
+  "name": "feirao-moveis-worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "@supabase/supabase-js": "^2.0.0",
+    "@whiskeysockets/baileys": "latest",
+    "@google/genai": "^0.7.0",
+    "qrcode": "^1.5.4",
+    "tsx": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/qrcode": "^1.5.5",
+    "typescript": "^5.0.0"
+  }
+}
