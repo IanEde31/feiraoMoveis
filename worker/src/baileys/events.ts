@@ -49,7 +49,7 @@ export function registrarEventos(conexaoId: string, organizationId: string, sock
             } as never,
             { onConflict: 'conexao_id,jid' }
           )
-          .select('id')
+          .select('id, cliente_id')
           .single()
 
         if (errContato || !contato) {
@@ -58,35 +58,45 @@ export function registrarEventos(conexaoId: string, organizationId: string, sock
         }
 
         // Criar lead no kanban apenas para mensagens novas (não histórico)
-        if (type === 'notify' && !isGrupo) {
+        if (type === 'notify' && !isGrupo && contato.cliente_id === null) {
           try {
-            const { data: contatoAtual } = await supabase
-              .from('contatos_whatsapp')
-              .select('id, cliente_id')
-              .eq('id', contato.id)
-              .single()
-
-            if (contatoAtual?.cliente_id === null) {
-              const { data: novoCliente } = await supabase
-                .from('clientes')
-                .insert({
+            // Upsert com ignoreDuplicates protege contra race condition:
+            // se dois handlers concorrentes tentarem criar o mesmo lead,
+            // o segundo recebe null e busca o cliente já criado pelo primeiro.
+            const { data: clienteUpsert } = await supabase
+              .from('clientes')
+              .upsert(
+                {
                   organization_id: organizationId,
-                  nome: msg.pushName ?? numero ?? 'Contato WhatsApp',
+                  nome: msg.pushName?.trim() || numero || 'Contato WhatsApp',
                   telefone: numero,
                   estagio_id: '8cf48bcc-d0fc-4af0-b220-1c2d6bb6ce36',
                   origem: 'whatsapp',
-                })
+                },
+                { onConflict: 'organization_id,telefone', ignoreDuplicates: true }
+              )
+              .select('id')
+              .single()
+
+            let clienteId = clienteUpsert?.id ?? null
+
+            if (!clienteId) {
+              const { data: existente } = await supabase
+                .from('clientes')
                 .select('id')
+                .eq('organization_id', organizationId)
+                .eq('telefone', numero)
                 .single()
+              clienteId = existente?.id ?? null
+            }
 
-              if (novoCliente) {
-                await supabase
-                  .from('contatos_whatsapp')
-                  .update({ cliente_id: novoCliente.id })
-                  .eq('id', contato.id)
+            if (clienteId) {
+              await supabase
+                .from('contatos_whatsapp')
+                .update({ cliente_id: clienteId })
+                .eq('id', contato.id)
 
-                console.log('[events] novo lead criado:', novoCliente.id)
-              }
+              console.log('[events] novo lead criado:', clienteId)
             }
           } catch (eLead) {
             console.error('[events] erro ao criar lead', eLead)
