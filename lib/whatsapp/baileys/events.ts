@@ -5,7 +5,7 @@ import { responderComAgente } from '@/lib/whatsapp/agente'
 /**
  * Registra os handlers de eventos do Baileys para persistir no Supabase.
  */
-export function registrarEventos(conexaoId: string, sock: WASocket) {
+export function registrarEventos(conexaoId: string, organizationId: string, sock: WASocket) {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify' && type !== 'append') return
     const supabase = createServerClient()
@@ -27,6 +27,7 @@ export function registrarEventos(conexaoId: string, sock: WASocket) {
           .upsert(
             {
               conexao_id: conexaoId,
+              organization_id: organizationId,
               jid,
               nome_push: msg.pushName ?? null,
               numero_telefone: numero,
@@ -72,6 +73,7 @@ export function registrarEventos(conexaoId: string, sock: WASocket) {
         await supabase.from('mensagens_whatsapp').upsert(
           {
             conexao_id: conexaoId,
+            organization_id: organizationId,
             contato_id: contato.id,
             message_id: msg.key.id,
             de: fromMe ? meuJid : jid,
@@ -110,6 +112,7 @@ export function registrarEventos(conexaoId: string, sock: WASocket) {
         .upsert(
           {
             conexao_id: conexaoId,
+            organization_id: organizationId,
             jid: c.id,
             nome: c.name ?? c.notify ?? null,
             nome_push: c.notify ?? null,

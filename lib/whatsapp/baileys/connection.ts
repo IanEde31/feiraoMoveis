@@ -26,6 +26,7 @@ export type ConexaoAtiva = {
  */
 export function iniciarConexao(
   conexaoId: string,
+  organizationId: string,
   onUpdate: (entry: ConexaoAtiva) => void,
   onDisconnect: (code: number | undefined, loggedOut: boolean) => void
 ): Promise<ConexaoAtiva> {
@@ -55,7 +56,7 @@ export function iniciarConexao(
       let resolved = false
 
       sock.ev.on('creds.update', saveCreds)
-      registrarEventos(conexaoId, sock)
+      registrarEventos(conexaoId, organizationId, sock)
 
       sock.ev.on('connection.update', async (u) => {
         const { qr, connection, lastDisconnect } = u

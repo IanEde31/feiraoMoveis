@@ -1,4 +1,5 @@
 import { iniciarConexao, type ConexaoAtiva } from './connection'
+import { createServerClient } from '@/lib/supabase/server'
 
 /**
  * Gerencia todas as conexões Baileys ativas em memória.
@@ -24,8 +25,24 @@ export async function criarConexao(conexaoId: string): Promise<ConexaoAtiva> {
   // Garante que nenhum entry antigo polua o map enquanto o novo socket inicia
   conexoes.delete(conexaoId)
 
+  // Busca organization_id da conexão para propagar nos inserts de eventos
+  const supabase = createServerClient()
+  const { data: conexaoDB, error: errConexao } = await supabase
+    .from('conexoes_whatsapp')
+    .select('organization_id')
+    .eq('id', conexaoId)
+    .single()
+
+  if (errConexao || !conexaoDB?.organization_id) {
+    console.error(`[manager] organization_id não encontrado para conexão ${conexaoId}`, errConexao)
+    return { sock: null as never, status: 'desconectado' as const }
+  }
+
+  const organizationId = conexaoDB.organization_id
+
   const entry = await iniciarConexao(
     conexaoId,
+    organizationId,
     // onUpdate: chamado pelo socket sempre que o status muda
     (e) => {
       conexoes.set(conexaoId, e)
