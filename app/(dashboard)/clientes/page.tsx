@@ -1,6 +1,7 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { getOrgScopedClient } from '@/lib/supabase/with-org'
 import { PaginaClientesClient } from '@/components/clientes/pagina-clientes-client'
 import type { EstagioKanban, Cliente, Origem } from '@/components/clientes/tipos'
+import { redirect } from 'next/navigation'
 
 const origensValidas = new Set<string>([
   'whatsapp', 'indicacao', 'loja_fisica', 'site', 'instagram', 'outro',
@@ -12,7 +13,14 @@ function normalizeOrigem(v: string | null): Origem | undefined {
 }
 
 export default async function PaginaClientes() {
-  const supabase = createServerClient()
+  let supabase: Awaited<ReturnType<typeof getOrgScopedClient>>['supabase']
+  let orgId: string
+
+  try {
+    ;({ supabase, orgId } = await getOrgScopedClient())
+  } catch {
+    redirect('/selecionar-loja')
+  }
 
   const [{ data: estagiosRaw }, { data: clientesRaw }] = await Promise.all([
     supabase
@@ -22,6 +30,7 @@ export default async function PaginaClientes() {
     supabase
       .from('clientes')
       .select('id, nome, telefone, email, cpf_cnpj, estagio_id, origem, tags, valor_estimado, observacoes, created_at')
+      .eq('organization_id', orgId)
       .order('created_at', { ascending: false }),
   ])
 

@@ -56,8 +56,8 @@ export function registrarEventos(conexaoId: string, organizationId: string, sock
           continue
         }
 
-        // Criar lead no kanban se o contato ainda não virou cliente
-        if (!isGrupo) {
+        // Criar lead no kanban apenas para mensagens novas (não histórico)
+        if (type === 'notify' && !isGrupo) {
           try {
             const { data: contatoAtual } = await supabase
               .from('contatos_whatsapp')
