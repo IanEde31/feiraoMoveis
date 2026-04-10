@@ -26,6 +26,7 @@ export function registrarEventos(conexaoId: string, organizationId: string, sock
     for (const msg of messages) {
       try {
         const jid = msg.key.remoteJid
+        console.log('[events] processando mensagem type:', type, 'fromMe:', !!msg.key.fromMe, 'isGrupo:', msg.key.remoteJid?.endsWith('@g.us'))
         if (!jid || !msg.key.id) continue
         // ignora status broadcast
         if (jid === 'status@broadcast') continue
