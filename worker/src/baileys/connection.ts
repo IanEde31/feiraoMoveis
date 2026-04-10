@@ -95,7 +95,7 @@ export function iniciarConexao(
           entry.status = 'conectado'
           onUpdate(entry)
           const numero = sock.user?.id?.split(':')[0]?.split('@')[0] ?? null
-          await supabase
+          const { error: errUpdate, data: updData } = await supabase
             .from('conexoes_whatsapp')
             .update({
               status: 'conectado',
@@ -104,6 +104,8 @@ export function iniciarConexao(
               ultima_atividade: new Date().toISOString(),
             } as never)
             .eq('id', conexaoId)
+            .select('id, status')
+          console.log(`[baileys] update status conectado:`, updData, errUpdate)
           console.log(`[baileys] conectado: ${conexaoId} (${numero})`)
           if (!resolved) {
             resolved = true
