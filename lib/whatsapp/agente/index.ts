@@ -55,7 +55,7 @@ export async function responderComAgente({
     // 1. Verifica flags de ativação
     const { data: conexao } = await supabase
       .from('conexoes_whatsapp')
-      .select('agente_ativo')
+      .select('agente_ativo, organization_id')
       .eq('id', conexaoId)
       .single()
 
@@ -139,6 +139,7 @@ export async function responderComAgente({
         messageId: resultado.key.id,
         conteudo: resposta,
         timestampSegundos: resultado.messageTimestamp ?? null,
+        organizationId: conexao.organization_id,
       })
     }
   } catch (e) {
