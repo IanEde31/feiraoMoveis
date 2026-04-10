@@ -2,6 +2,9 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['baileys', 'qrcode'],
+  experimental: {
+    middlewareClientMaxBodySize: '80mb',
+  },
   images: {
     remotePatterns: [
       {

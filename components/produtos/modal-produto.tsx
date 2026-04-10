@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Plus, Minus,
   TrendingUp, TrendingDown, AlertTriangle,
   CheckCircle2, Loader2, Tag, Ruler, Factory,
-  Layers, ArrowUpCircle, ArrowDownCircle,
+  Layers, ArrowUpCircle, ArrowDownCircle, Box,
 } from 'lucide-react'
 import type { Produto } from './tipos'
 import { nivelEstoque, formatarPreco, calcularMargem } from './tipos'
@@ -574,14 +574,27 @@ export function ModalProduto({
               </button>
             </div>
 
-            {/* Editar */}
-            <button
-              onClick={() => { aoFechar(); aoEditar(produto) }}
-              className="inline-flex items-center gap-2 px-5 py-2 bg-ouro-600 hover:bg-ouro-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ouro-500 focus-visible:ring-offset-2"
-            >
-              <Pencil size={14} aria-hidden="true" />
-              Editar produto
-            </button>
+            {/* Editar + Ver em AR */}
+            <div className="flex items-center gap-2">
+              {produto.modelo_3d_path && (
+                <a
+                  href={`/ar/${produto.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-ouro-300 bg-ouro-50 hover:bg-ouro-100 text-ouro-700 text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ouro-500 focus-visible:ring-offset-2"
+                >
+                  <Box size={14} aria-hidden="true" />
+                  Ver em AR
+                </a>
+              )}
+              <button
+                onClick={() => { aoFechar(); aoEditar(produto) }}
+                className="inline-flex items-center gap-2 px-5 py-2 bg-ouro-600 hover:bg-ouro-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ouro-500 focus-visible:ring-offset-2"
+              >
+                <Pencil size={14} aria-hidden="true" />
+                Editar produto
+              </button>
+            </div>
           </div>
         </div>
       </div>

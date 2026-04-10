@@ -1,6 +1,6 @@
 'use client'
 
-import { Package, Pencil, EyeOff, Eye, Trash2 } from 'lucide-react'
+import { Package, Pencil, EyeOff, Eye, Trash2, Box } from 'lucide-react'
 import type { Produto } from './tipos'
 import { nivelEstoque, formatarPreco } from './tipos'
 
@@ -66,6 +66,16 @@ export function CardProduto({ produto, aoClicar, aoEditar, aoAlternarAtivo, aoDe
             </span>
           )}
         </div>
+
+        {/* Badge AR */}
+        {produto.modelo_3d_path && (
+          <div className="absolute bottom-2 left-2">
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold bg-ouro-100 text-ouro-700 border border-ouro-300 backdrop-blur-sm">
+              <Box size={10} aria-hidden="true" />
+              AR
+            </span>
+          </div>
+        )}
 
         {/* Ações — visíveis no hover */}
         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">

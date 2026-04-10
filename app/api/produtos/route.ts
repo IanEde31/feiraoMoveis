@@ -1,15 +1,21 @@
 import { getOrgScopedClient } from '@/lib/supabase/with-org'
 import { NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const { supabase, orgId } = await getOrgScopedClient()
+    const { searchParams } = new URL(req.url)
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('produtos')
       .select('*, categorias_produto(id, nome)')
       .eq('organization_id', orgId)
-      .order('created_at', { ascending: false })
+
+    if (searchParams.get('com_modelo_3d') === 'true') {
+      query = query.not('modelo_3d_path', 'is', null)
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(data)
