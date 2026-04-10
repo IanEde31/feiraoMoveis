@@ -1,4 +1,4 @@
-import type { WASocket } from 'baileys'
+import type { WASocket } from '@whiskeysockets/baileys'
 import { GoogleGenAI } from '@google/genai'
 import { createClient } from '@supabase/supabase-js'
 import { persistirMensagemEnviada } from '../persistir-mensagem-enviada'

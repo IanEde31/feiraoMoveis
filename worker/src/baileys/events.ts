@@ -1,4 +1,4 @@
-import type { WASocket } from 'baileys'
+import type { WASocket } from '@whiskeysockets/baileys'
 import { createClient } from '@supabase/supabase-js'
 import { responderComAgente } from '../agente'
 

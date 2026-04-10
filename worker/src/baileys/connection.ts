@@ -4,7 +4,7 @@ import makeWASocket, {
   Browsers,
   fetchLatestBaileysVersion,
   type WASocket,
-} from 'baileys'
+} from '@whiskeysockets/baileys'
 import path from 'path'
 import { rm } from 'fs/promises'
 import qrcode from 'qrcode'
