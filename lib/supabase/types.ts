@@ -1,3 +1,7 @@
+// Este arquivo é gerado automaticamente pelo Supabase CLI.
+// NÃO edite manualmente — rode /gerar-tipos para atualizar.
+// Última atualização: 2026-04-10
+
 export type Json =
   | string
   | number
@@ -178,6 +182,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      comandos_whatsapp: {
+        Row: {
+          created_at: string | null
+          erro: string | null
+          id: string
+          organization_id: string
+          payload: Json
+          resultado: Json | null
+          status: string
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          erro?: string | null
+          id?: string
+          organization_id: string
+          payload?: Json
+          resultado?: Json | null
+          status?: string
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          erro?: string | null
+          id?: string
+          organization_id?: string
+          payload?: Json
+          resultado?: Json | null
+          status?: string
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       conexoes_whatsapp: {
         Row: {
