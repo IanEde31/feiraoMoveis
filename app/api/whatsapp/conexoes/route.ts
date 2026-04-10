@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getOrgScopedClient } from '@/lib/supabase/with-org'
-import { obterConexao } from '@/lib/whatsapp/baileys/manager'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// GET — lista todas as conexões, corrigindo status stale (socket morto mas DB diz conectado)
+// GET — lista todas as conexões ativas da organização
 export async function GET() {
   try {
     const { supabase, orgId } = await getOrgScopedClient()
@@ -19,18 +18,6 @@ export async function GET() {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     const lista = data ?? []
-
-    // Detecta conexões que o banco julga conectadas mas o socket não existe em memória
-    const stale = lista.filter(
-      (c) => c.status === 'conectado' && !obterConexao(c.id)
-    )
-    if (stale.length > 0) {
-      await supabase
-        .from('conexoes_whatsapp')
-        .update({ status: 'desconectado', organization_id: orgId })
-        .in('id', stale.map((c) => c.id))
-      for (const c of stale) c.status = 'desconectado'
-    }
 
     return NextResponse.json({ data: lista })
   } catch {
