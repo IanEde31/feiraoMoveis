@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { MessageCircle, WifiOff } from 'lucide-react'
+import { Bot, MessageCircle, WifiOff } from 'lucide-react'
 
+import { useSupabaseClient } from '@/lib/supabase/client'
 import { ListaConversas } from '@/components/whatsapp/ListaConversas'
 import { CabecalhoChat } from '@/components/whatsapp/CabecalhoChat'
 import { AreaMensagens } from '@/components/whatsapp/AreaMensagens'
@@ -66,6 +67,8 @@ export default function WhatsAppPage() {
   const [novaRespostaModal, setNovaRespostaModal] = useState(false)
   const [conectando, setConectando] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+
+  const supabase = useSupabaseClient()
 
   function notificar(msg: string) {
     setToast(msg)
@@ -166,37 +169,63 @@ export default function WhatsAppPage() {
     [mensagensPorContato, contatoSelId]
   )
 
-  // ─── Polling: contatos (5s) ───────────────────────────────────────────────
+  // ─── Realtime: contatos (recarrega ao detectar mudança) ────────────────────
   useEffect(() => {
     if (!conexaoSelId) return
-    const t = setInterval(() => carregarContatos(conexaoSelId, { manterSelecao: true }), 5000)
-    return () => clearInterval(t)
+    const canal = supabase
+      .channel(`whatsapp-contatos-${conexaoSelId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contatos_whatsapp',
+          filter: `conexao_id=eq.${conexaoSelId}`,
+        },
+        () => {
+          carregarContatos(conexaoSelId, { manterSelecao: true })
+        }
+      )
+      .subscribe((status) => {
+        console.log('[REALTIME STATUS contatos]', status)
+      })
+    return () => { supabase.removeChannel(canal) }
   }, [conexaoSelId, carregarContatos])
 
-  // ─── Polling: mensagens da conversa (3s, incremental) ─────────────────────
+  // ─── Realtime: mensagens (insere direto no estado sem re-fetch) ────────────
   useEffect(() => {
-    if (!contatoSelId) return
-    const t = setInterval(async () => {
-      const atuais = mensagensPorContato[contatoSelId]
-      const desde =
-        atuais && atuais.length > 0 ? atuais[atuais.length - 1].timestamp_whatsapp : null
-      const url = desde
-        ? `/api/whatsapp/mensagens?contato_id=${contatoSelId}&desde=${encodeURIComponent(desde)}`
-        : `/api/whatsapp/mensagens?contato_id=${contatoSelId}`
-      const r = await fetch(url, { cache: 'no-store' })
-      const j = await r.json()
-      const novas: Mensagem[] = j.mensagens ?? []
-      if (novas.length === 0) return
-      setMensagensPorContato((prev) => {
-        const existentes = prev[contatoSelId] ?? []
-        const ids = new Set(existentes.map((m) => m.id))
-        const acrescimo = novas.filter((m) => !ids.has(m.id))
-        if (acrescimo.length === 0) return prev
-        return { ...prev, [contatoSelId]: [...existentes, ...acrescimo] }
+    if (!contatoSelId || !conexaoSelId) return
+    const canal = supabase
+      .channel(`whatsapp-mensagens-${contatoSelId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'mensagens_whatsapp' },
+        (payload) => console.log('[REALTIME WILDCARD]', payload)
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'mensagens_whatsapp',
+          filter: `conexao_id=eq.${conexaoSelId}`,
+        },
+        (payload) => {
+          console.log('[REALTIME]', payload)
+          const nova = payload.new as Mensagem
+          if (nova.contato_id !== contatoSelId) return
+          setMensagensPorContato((prev) => {
+            const existentes = prev[contatoSelId] ?? []
+            if (existentes.some((m) => m.id === nova.id)) return prev
+            return { ...prev, [contatoSelId]: [...existentes, nova] }
+          })
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('[REALTIME STATUS mensagens]', status, err ?? '')
       })
-    }, 3000)
-    return () => clearInterval(t)
-  }, [contatoSelId, mensagensPorContato])
+    return () => { supabase.removeChannel(canal) }
+  }, [contatoSelId, conexaoSelId])
 
   // ─── Polling: status conexões (8s) ────────────────────────────────────────
   useEffect(() => {
@@ -318,6 +347,40 @@ export default function WhatsAppPage() {
     notificar('Conversa marcada como resolvida')
   }
 
+  // ─── Agente IA: toggles ───────────────────────────────────────────────────
+  async function alternarAgenteConexao(ativo: boolean) {
+    if (!conexaoSelId) return
+    setConexoes((prev) =>
+      prev.map((c) => (c.id === conexaoSelId ? { ...c, agente_ativo: ativo } : c))
+    )
+    try {
+      await fetch(`/api/whatsapp/conexoes/${conexaoSelId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ agente_ativo: ativo }),
+      })
+      notificar(ativo ? 'Agente IA ativado nesta conexão' : 'Agente IA desativado')
+    } catch {
+      notificar('Erro ao atualizar agente')
+    }
+  }
+
+  async function alternarAgenteContato(valor: boolean | null) {
+    if (!contatoSelId) return
+    setContatos((prev) =>
+      prev.map((c) => (c.id === contatoSelId ? { ...c, agente_ativo: valor } : c))
+    )
+    try {
+      await fetch(`/api/whatsapp/contatos/${contatoSelId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ agente_ativo: valor }),
+      })
+    } catch {
+      notificar('Erro ao atualizar agente')
+    }
+  }
+
   function adicionarRespostaRapida(titulo: string, texto: string) {
     setRespostasRapidas((prev) => [
       ...prev,
@@ -404,8 +467,63 @@ export default function WhatsAppPage() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5 max-w-[1600px]">
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex h-[calc(100dvh-12rem)] min-h-[32rem]">
+    <div className="space-y-3 max-w-[1600px]">
+      {/* Barra Agente IA */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm px-4 py-2.5 flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-sm">
+            <Bot className="h-4 w-4 text-white" />
+          </div>
+          <span className="text-sm font-medium text-slate-800">Agente IA</span>
+        </div>
+
+        {conexaoSel ? (
+          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-amber-500"
+              checked={!!conexaoSel.agente_ativo}
+              onChange={(e) => alternarAgenteConexao(e.target.checked)}
+            />
+            <span>
+              Ativo na conexão <strong className="text-slate-800">{conexaoSel.nome}</strong>
+            </span>
+            {conexaoSel.agente_ativo && (
+              <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-semibold">
+                IA ON
+              </span>
+            )}
+          </label>
+        ) : (
+          <span className="text-xs text-slate-400">Selecione uma conexão</span>
+        )}
+
+        {contatoSel && (
+          <div className="flex items-center gap-2 ml-auto text-xs text-slate-600">
+            <span>Nesta conversa:</span>
+            <select
+              className="border border-slate-200 rounded-md px-2 py-1 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+              value={
+                contatoSel.agente_ativo === null || contatoSel.agente_ativo === undefined
+                  ? 'herda'
+                  : contatoSel.agente_ativo
+                    ? 'on'
+                    : 'off'
+              }
+              onChange={(e) => {
+                const v = e.target.value
+                alternarAgenteContato(v === 'herda' ? null : v === 'on')
+              }}
+            >
+              <option value="herda">Herdar da conexão</option>
+              <option value="on">Forçar ligado</option>
+              <option value="off">Silenciar agente</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex h-[calc(100dvh-14rem)] min-h-[32rem]">
         {/* COLUNA ESQUERDA */}
         <ListaConversas
           conexoes={conexoes}

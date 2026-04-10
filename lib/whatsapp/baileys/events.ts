@@ -1,5 +1,6 @@
 import type { WASocket } from 'baileys'
 import { createServerClient } from '@/lib/supabase/server'
+import { responderComAgente } from '@/lib/whatsapp/agente'
 
 /**
  * Registra os handlers de eventos do Baileys para persistir no Supabase.
@@ -83,6 +84,17 @@ export function registrarEventos(conexaoId: string, sock: WASocket) {
           } as never,
           { onConflict: 'conexao_id,message_id' }
         )
+
+        // Agente IA — só responde mensagens de texto recebidas (não próprias, não grupo)
+        if (!fromMe && tipo === 'texto' && conteudo && !isGrupo) {
+          await responderComAgente({
+            conexaoId,
+            contatoId: contato.id,
+            jid,
+            texto: conteudo,
+            sock,
+          })
+        }
       } catch (e) {
         console.error('[baileys] erro processando mensagem', e)
       }

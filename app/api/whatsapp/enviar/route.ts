@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { obterConexao } from '@/lib/whatsapp/baileys/manager'
 import { createServerClient } from '@/lib/supabase/server'
+import { persistirMensagemEnviada } from '@/lib/whatsapp/persistir-mensagem-enviada'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,22 +42,16 @@ export async function POST(req: Request) {
       .single()
 
     if (contato && resultado?.key?.id) {
-      const meuJid = entry.sock.user?.id ?? ''
-      await supabase.from('mensagens_whatsapp').upsert(
-        {
-          conexao_id,
-          contato_id: contato.id,
-          message_id: resultado.key.id,
-          de: meuJid,
-          para: jid,
-          tipo: 'texto',
-          conteudo: texto,
-          enviado_por_nos: true,
-          status_entrega: 'enviado',
-          timestamp_whatsapp: new Date().toISOString(),
-        } as never,
-        { onConflict: 'conexao_id,message_id' }
-      )
+      await persistirMensagemEnviada({
+        supabase,
+        conexaoId: conexao_id,
+        contatoId: contato.id,
+        jid,
+        meuJid: entry.sock.user?.id ?? '',
+        messageId: resultado.key.id,
+        conteudo: texto,
+        timestampSegundos: resultado.messageTimestamp ?? null,
+      })
     }
 
     return NextResponse.json({ ok: true, message_id: resultado?.key?.id ?? null })

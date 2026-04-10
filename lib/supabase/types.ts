@@ -1,6 +1,6 @@
 // Este arquivo é gerado automaticamente pelo Supabase CLI.
 // NÃO edite manualmente — rode /gerar-tipos para atualizar.
-// Última atualização: 2026-04-08
+// Última atualização: 2026-04-09
 
 export type Json =
   | string
@@ -11,8 +11,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
@@ -179,6 +177,7 @@ export type Database = {
       }
       conexoes_whatsapp: {
         Row: {
+          agente_ativo: boolean
           api_key: string | null
           ativo: boolean
           base_url: string | null
@@ -199,6 +198,7 @@ export type Database = {
           webhook_url: string | null
         }
         Insert: {
+          agente_ativo?: boolean
           api_key?: string | null
           ativo?: boolean
           base_url?: string | null
@@ -219,6 +219,7 @@ export type Database = {
           webhook_url?: string | null
         }
         Update: {
+          agente_ativo?: boolean
           api_key?: string | null
           ativo?: boolean
           base_url?: string | null
@@ -250,6 +251,7 @@ export type Database = {
       }
       contatos_whatsapp: {
         Row: {
+          agente_ativo: boolean | null
           avatar_url: string | null
           cliente_id: string | null
           conexao_id: string
@@ -264,6 +266,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agente_ativo?: boolean | null
           avatar_url?: string | null
           cliente_id?: string | null
           conexao_id: string
@@ -278,6 +281,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agente_ativo?: boolean | null
           avatar_url?: string | null
           cliente_id?: string | null
           conexao_id?: string

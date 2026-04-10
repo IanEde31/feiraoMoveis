@@ -6,11 +6,14 @@ const rotasPublicas = createRouteMatcher([
   '/sign-up(.*)',
 ])
 
-export default clerkMiddleware(async (auth, req) => {
-  if (!rotasPublicas(req)) {
-    await auth.protect()
-  }
-})
+export default clerkMiddleware(
+  async (auth, req) => {
+    if (!rotasPublicas(req)) {
+      await auth.protect()
+    }
+  },
+  { clockSkewInMs: 300_000 }
+)
 
 export const config = {
   matcher: [

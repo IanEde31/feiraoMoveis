@@ -13,6 +13,7 @@ export type Conexao = {
   status: StatusConexao
   numero_telefone: string | null
   qr_code: string | null
+  agente_ativo?: boolean
 }
 
 export type Contato = {
@@ -24,6 +25,7 @@ export type Contato = {
   numero_telefone: string
   is_grupo: boolean
   avatar_url: string | null
+  agente_ativo?: boolean | null
 }
 
 export type Mensagem = {
