@@ -68,7 +68,9 @@ async function processarComando(comando: Comando): Promise<{ ok: true }> {
 
   if (tipo === 'criar_conexao') {
     const { conexao_id } = payload as { conexao_id: string }
-    await criarConexao(conexao_id)
+    console.log(`[comandos] iniciando criarConexao para ${conexao_id}`)
+    const entry = await criarConexao(conexao_id)
+    console.log(`[comandos] criarConexao retornou status: ${entry.status}`)
     return { ok: true }
   }
 
@@ -98,6 +100,7 @@ async function executarComando(comando: Comando): Promise<void> {
     console.log(`[comandos] ${comando.tipo} ${comando.id} concluído`)
   } catch (e) {
     const erro = e instanceof Error ? e.message : String(e)
+    console.error(`[comandos] erro ao processar ${comando.tipo} ${comando.id}:`, e)
     await supabase
       .from('comandos_whatsapp')
       .update({ status: 'erro', erro } as never)
