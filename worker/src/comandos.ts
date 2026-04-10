@@ -79,17 +79,27 @@ async function processarComando(comando: Comando): Promise<{ ok: true }> {
 
 async function executarComando(comando: Comando): Promise<void> {
   // Lock atômico — só processa se ainda estiver pendente
-  const { count } = await supabase
+  console.log(`[comandos] tentando lock em ${comando.tipo} ${comando.id}`)
+  const { data: lockData, error: lockError } = await supabase
     .from('comandos_whatsapp')
-    .update({ status: 'processando' } as never)
+    .update({ status: 'processando', updated_at: new Date().toISOString() } as never)
     .eq('id', comando.id)
     .eq('status', 'pendente')
-    .select('id', { count: 'exact', head: true })
+    .select('id')
 
-  if (!count) {
+  if (lockError) {
+    console.error(`[comandos] erro no UPDATE de lock para ${comando.id}:`, lockError)
+    return
+  }
+
+  console.log(`[comandos] resultado do lock para ${comando.id}:`, lockData)
+
+  if (!lockData || lockData.length === 0) {
     console.log(`[comandos] comando ${comando.id} já foi pego por outro worker`)
     return
   }
+
+  console.log(`[comandos] lock adquirido para ${comando.tipo} ${comando.id} — processando`)
 
   try {
     const resultado = await processarComando(comando)
@@ -100,12 +110,14 @@ async function executarComando(comando: Comando): Promise<void> {
     console.log(`[comandos] ${comando.tipo} ${comando.id} concluído`)
   } catch (e) {
     const erro = e instanceof Error ? e.message : String(e)
+    const stack = e instanceof Error ? e.stack : undefined
     console.error(`[comandos] erro ao processar ${comando.tipo} ${comando.id}:`, e)
+    if (stack) console.error(`[comandos] stack trace:`, stack)
     await supabase
       .from('comandos_whatsapp')
       .update({ status: 'erro', erro } as never)
       .eq('id', comando.id)
-    console.error(`[comandos] ${comando.tipo} ${comando.id} falhou:`, erro)
+    console.error(`[comandos] ${comando.tipo} ${comando.id} marcado como erro: ${erro}`)
   }
 }
 
