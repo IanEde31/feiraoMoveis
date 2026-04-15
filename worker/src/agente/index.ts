@@ -17,7 +17,7 @@ const supabase = createClient(
   }
 )
 
-const MODELO = 'gemini-2.5-flash'
+const MODELO = 'gemini-3.1-flash-lite-preview'
 const TOKEN_LINK_AR = 'LINK_AR'
 const PALAVRAS_CHAVE_AR = [
   'realidade aumentada',

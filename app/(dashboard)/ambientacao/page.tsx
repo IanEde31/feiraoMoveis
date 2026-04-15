@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { getOrgScopedClient } from '@/lib/supabase/with-org'
 import { Sparkles } from 'lucide-react'
 import { AmbientacaoWorkspace } from '@/components/ambientacao/ambientacao-workspace'
 
@@ -7,18 +7,20 @@ export const metadata = {
 }
 
 export default async function PaginaAmbientacao() {
-  const supabase = createServerClient()
+  const { supabase, orgId } = await getOrgScopedClient()
 
   const [{ data: produtos }, { data: categorias }, { data: clientes }] = await Promise.all([
     supabase
       .from('produtos')
       .select('*, categorias_produto(id, nome)')
       .eq('ativo', true)
+      .eq('organization_id', orgId)
       .order('created_at', { ascending: false }),
     supabase.from('categorias_produto').select('*').order('nome'),
     supabase
       .from('clientes')
       .select('id, nome, telefone')
+      .eq('organization_id', orgId)
       .order('nome'),
   ])
 
